@@ -114,36 +114,16 @@ FM175XX_CW_ENABLE                       = 3
 FM175XX_CARD_INFO_READ                  = 0
 FM175XX_CARD_INFO_CLEAR                 = 1
 
-# About NTAG213 Card
-FM175XX_NTAG213_TOTAL_PAGES             = 45
-
-# About NTAG215 Card
-FM175XX_NTAG215_TOTAL_PAGES             = 135
-FM175XX_NTAG215_USER_START_PAGE         = 4
-FM175XX_NTAG215_USER_END_PAGE           = 129
-FM175XX_NTAG215_BYTES_PER_PAGE          = 4
-FM175XX_NTAG215_TOTAL_SIZE              = 540
-
-# About NTAG216 Card
-FM175XX_NTAG216_TOTAL_PAGES             = 231
-FM175XX_NTAG216_TOTAL_SIZE              = 924
-
-FM175XX_ULTRALIGHT_TOTAL_PAGES          = 44
-
-# Page counts this reader recognises, ascending. A tag's size is not known before
-# it is read, so it is read until it stops answering and the result truncated to
-# the largest of these it fully covered -- which also discards the roll-over bytes
-# the final READ returns. A tag answering fewer pages than the smallest entry is
-# rejected as unreadable.
-#
-# FM175XX_ULTRALIGHT_TOTAL_PAGES is deliberately absent. A READ rolls over within
-# addressable memory, so a 41-page Ultralight EV1 (MF0UL21) answers every read up
-# to page 40 and is indistinguishable from a 44-page tag at this level; accepting
-# 44 would hand back 176 bytes whose tail is roll-over rather than tag memory.
-# Plain Ultralight stays rejected, as it was before.
-FM175XX_ULTRALIGHT_KNOWN_PAGE_COUNTS    = [FM175XX_NTAG213_TOTAL_PAGES,
-                                           FM175XX_NTAG215_TOTAL_PAGES,
-                                           FM175XX_NTAG216_TOTAL_PAGES]
+# Ultralight / NTAG Type 2 tags
+FM175XX_ULTRALIGHT_BYTES_PER_PAGE       = 4
+# Default CC size byte -> physical page count, including header and configuration.
+# CC sizes describe the NDEF area and are smaller than the physical NTAG memory.
+FM175XX_ULTRALIGHT_PAGE_COUNTS_BY_CC_SIZE = {
+    0x06: 16,   # MIFARE Ultralight
+    0x12: 45,   # NTAG213
+    0x3E: 135,  # NTAG215
+    0x6D: 231,  # NTAG216
+}
 
 # About M1 Card
 # EEPROM
