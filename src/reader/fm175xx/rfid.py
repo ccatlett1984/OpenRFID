@@ -688,30 +688,47 @@ class Fm175xx(MifareClassicReader, MifareUltralightReader):
         return ret
 
     # TODO: Maybe don't call it ultralight but the actual ISO specification
-    # Reader-A: NTAG215, read all data
+    # Reader-A: NTAG/Ultralight, read all data
+    #
+    # The tag's size is not known before it is read and there is no GET_VERSION
+    # path here, so pages are read until the tag stops answering and the result is
+    # truncated to the largest recognised page count that was fully covered: 180
+    # bytes for an NTAG213, 540 for an NTAG215 and 924 for an NTAG216, which is the
+    # only one that runs the loop to completion.
     def __reader_a_ultralight_read_all_data(self, retry_times = 3) -> Fm175xxReturnVal:
         ret = Fm175xxReturnVal()
-        card_data_tmp = [0] * Constants.FM175XX_NTAG215_TOTAL_SIZE
+        card_data_tmp = [0] * Constants.FM175XX_NTAG216_TOTAL_SIZE
+        pages_read = 0
 
-        for page_no in range(0, Constants.FM175XX_NTAG215_TOTAL_PAGES, 4):
+        for page_no in range(0, Constants.FM175XX_NTAG216_TOTAL_PAGES, 4):
             result = Fm175xxReturnVal()
             for _ in range(retry_times):
                 result = self.__reader_a_ultralight_page_read(page_no)
                 if (result.err_code == Constants.FM175XX_OK):
                     break
             if (result.err_code != Constants.FM175XX_OK):
-                if (page_no - 4) in Constants.FM175XX_ULTRALIGHT_VALID_END_PAGES:
-                    card_data_tmp = card_data_tmp[0 : (page_no * Constants.FM175XX_NTAG215_BYTES_PER_PAGE)]
-                    break
-
-                ret.err_code = Constants.FM175XX_CARD_READ_ERR
-                return ret
+                # End of tag memory, or a tag smaller than the loop bound. A READ
+                # rolls over within addressable memory, so the last successful read
+                # may overrun the final page; the truncation below discards that.
+                break
 
             area = page_no * Constants.FM175XX_NTAG215_BYTES_PER_PAGE
-            bytes_to_copy = min(16, Constants.FM175XX_NTAG215_TOTAL_SIZE - area)
+            bytes_to_copy = min(16, Constants.FM175XX_NTAG216_TOTAL_SIZE - area)
             if bytes_to_copy > 0:
                 card_data_tmp[area : area + bytes_to_copy] = result.out_data[0 : bytes_to_copy]
+            pages_read = page_no + 4
 
+        total_pages = 0
+        for known_pages in Constants.FM175XX_ULTRALIGHT_KNOWN_PAGE_COUNTS:
+            if (pages_read >= known_pages):
+                total_pages = known_pages
+
+        if (total_pages == 0):
+            self.logger.warning("Ultralight read stopped after %d pages, too small for any known tag", pages_read)
+            ret.err_code = Constants.FM175XX_CARD_READ_ERR
+            return ret
+
+        self.logger.debug("Ultralight read reached page %d, keeping %d pages", pages_read, total_pages)
         ret.err_code = Constants.FM175XX_OK
-        ret.out_data = card_data_tmp
+        ret.out_data = card_data_tmp[0 : total_pages * Constants.FM175XX_NTAG215_BYTES_PER_PAGE]
         return ret
